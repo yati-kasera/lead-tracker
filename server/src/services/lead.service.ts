@@ -1,5 +1,5 @@
 import type { Types } from 'mongoose';
-import type { LeadStatus } from '../constants/leadStatus.js';
+import { LEAD_STATUSES, type LeadStatus } from '../constants/leadStatus.js';
 import { Lead, type LeadRecord } from '../models/lead.model.js';
 import type { CreateLeadInput, ListLeadsQuery, UpdateLeadStatusInput } from '../schemas/lead.schema.js';
 import { escapeRegex } from '../utils/escapeRegex.js';
@@ -23,6 +23,11 @@ export interface PaginatedLeads {
     total: number;
     totalPages: number;
   };
+}
+
+export interface LeadStats {
+  total: number;
+  byStatus: Record<LeadStatus, number>;
 }
 
 type StoredLead = LeadRecord & { _id: Types.ObjectId };
@@ -88,4 +93,27 @@ export async function updateLeadStatus(id: string, { status }: UpdateLeadStatusI
   }
 
   return toLeadDto(lead);
+}
+
+export async function deleteLead(id: string): Promise<void> {
+  const deleted = await Lead.findByIdAndDelete(id);
+  if (!deleted) {
+    throw new HttpError(404, 'Lead not found');
+  }
+}
+
+export async function getLeadStats(): Promise<LeadStats> {
+  const groups = await Lead.aggregate<{ _id: LeadStatus; count: number }>([
+    { $group: { _id: '$status', count: { $sum: 1 } } },
+  ]);
+
+  const byStatus = Object.fromEntries(LEAD_STATUSES.map((status) => [status, 0])) as Record<LeadStatus, number>;
+  for (const { _id, count } of groups) {
+    byStatus[_id] = count;
+  }
+
+  return {
+    total: groups.reduce((sum, { count }) => sum + count, 0),
+    byStatus,
+  };
 }

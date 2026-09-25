@@ -19,6 +19,17 @@ export const listLeads: RequestHandler = async (req, res) => {
   res.json(result);
 };
 
+export const getLeadStats: RequestHandler = async (_req, res) => {
+  const stats = await leadService.getLeadStats();
+  res.json({ data: stats });
+};
+
+export const deleteLead: RequestHandler = async (req, res) => {
+  const { id } = leadIdParamSchema.parse(req.params);
+  await leadService.deleteLead(id);
+  res.status(204).end();
+};
+
 export const updateLeadStatus: RequestHandler = async (req, res) => {
   const { id } = leadIdParamSchema.parse(req.params);
   const input = updateLeadStatusSchema.parse(req.body);
