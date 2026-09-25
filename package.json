@@ -1,0 +1,13 @@
+{
+  "name": "lead-tracker",
+  "private": true,
+  "description": "Lead Tracker - React + TypeScript client and Express + MongoDB API",
+  "scripts": {
+    "install:all": "npm --prefix server install && npm --prefix client install",
+    "dev:server": "npm --prefix server run dev",
+    "dev:client": "npm --prefix client run dev",
+    "lint": "npm --prefix server run lint && npm --prefix client run lint",
+    "typecheck": "npm --prefix server run typecheck && npm --prefix client run typecheck",
+    "test": "npm --prefix server test && npm --prefix client test"
+  }
+}
