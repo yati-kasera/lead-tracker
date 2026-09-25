@@ -1,7 +1,7 @@
 import type { Types } from 'mongoose';
 import type { LeadStatus } from '../constants/leadStatus.js';
 import { Lead, type LeadRecord } from '../models/lead.model.js';
-import type { CreateLeadInput, ListLeadsQuery } from '../schemas/lead.schema.js';
+import type { CreateLeadInput, ListLeadsQuery, UpdateLeadStatusInput } from '../schemas/lead.schema.js';
 import { escapeRegex } from '../utils/escapeRegex.js';
 import { HttpError } from '../utils/httpError.js';
 
@@ -86,4 +86,18 @@ export async function listLeads({ search, status, page, limit }: ListLeadsQuery)
       totalPages: Math.ceil(total / limit),
     },
   };
+}
+
+export async function updateLeadStatus(id: string, { status }: UpdateLeadStatusInput): Promise<LeadDto> {
+  const lead = await Lead.findByIdAndUpdate(
+    id,
+    { status },
+    { returnDocument: 'after', runValidators: true },
+  ).lean<StoredLead>();
+
+  if (!lead) {
+    throw new HttpError(404, 'Lead not found');
+  }
+
+  return toLeadDto(lead);
 }
