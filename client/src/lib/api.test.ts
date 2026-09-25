@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { ApiError, createLead, listLeads, updateLeadStatus } from './api'
+import { ApiError, createLead, deleteLead, getLeadStats, listLeads, updateLeadStatus } from './api'
 
 function mockFetch(status: number, body: unknown) {
   const fetchMock = vi.fn().mockResolvedValue(
@@ -46,6 +46,21 @@ describe('api client', () => {
 
     expect(error).toBeInstanceOf(ApiError)
     expect(error).toMatchObject({ status: 400, message: 'Validation failed', details: [{ path: 'email' }] })
+  })
+
+  it('deletes a lead and tolerates the empty 204 body', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 204 }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(deleteLead('abc')).resolves.toBeUndefined()
+    expect(fetchMock).toHaveBeenCalledWith('/api/leads/abc', expect.objectContaining({ method: 'DELETE' }))
+  })
+
+  it('unwraps lead stats', async () => {
+    const data = { total: 1, byStatus: { NEW: 1, CONTACTED: 0, QUALIFIED: 0, CONVERTED: 0, LOST: 0 } }
+    mockFetch(200, { data })
+
+    await expect(getLeadStats()).resolves.toEqual(data)
   })
 
   it('reports network failures with a friendly message', async () => {
