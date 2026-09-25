@@ -35,17 +35,17 @@ describe('api client', () => {
   })
 
   it('throws an ApiError with server details on failure', async () => {
-    mockFetch(409, {
+    mockFetch(400, {
       error: {
-        message: 'A lead with this email already exists',
-        details: [{ path: 'email', message: 'A lead with this email already exists' }],
+        message: 'Validation failed',
+        details: [{ path: 'email', message: 'Enter a valid email address' }],
       },
     })
 
     const error = await createLead({ name: 'Priya', email: 'p@x.io', phone: '9876543210' }).catch((e: unknown) => e)
 
     expect(error).toBeInstanceOf(ApiError)
-    expect(error).toMatchObject({ status: 409, details: [{ path: 'email' }] })
+    expect(error).toMatchObject({ status: 400, message: 'Validation failed', details: [{ path: 'email' }] })
   })
 
   it('reports network failures with a friendly message', async () => {

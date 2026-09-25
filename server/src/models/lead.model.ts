@@ -10,7 +10,6 @@ const leadSchema = new Schema(
       trim: true,
       lowercase: true,
       maxlength: 254,
-      unique: true,
     },
     phone: { type: String, required: true, trim: true, maxlength: 20 },
     status: {

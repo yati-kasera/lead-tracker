@@ -73,16 +73,15 @@ describe('POST /api/leads', () => {
     expect(res.body.error.details[0].path).toBe('phone');
   });
 
-  it('returns 409 when the email already exists (case-insensitive)', async () => {
-    await createLead();
-    const res = await request(app)
-      .post('/api/leads')
-      .send({ ...validLead, email: 'PRIYA@example.com' });
+  it('allows two leads with the same email', async () => {
+    const first = await createLead();
+    const second = await createLead({ name: 'Priya S.', email: 'PRIYA@example.com' });
 
-    expect(res.status).toBe(409);
-    expect(res.body.error.details).toEqual([
-      { path: 'email', message: 'A lead with this email already exists' },
-    ]);
+    expect(second.id).not.toBe(first.id);
+    expect(second.email).toBe(first.email);
+
+    const list = await request(app).get('/api/leads');
+    expect(list.body.pagination.total).toBe(2);
   });
 
   it('returns 400 for malformed JSON', async () => {

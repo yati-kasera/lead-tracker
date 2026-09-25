@@ -39,21 +39,9 @@ function toLeadDto(lead: StoredLead): LeadDto {
   };
 }
 
-function isDuplicateKeyError(err: unknown): boolean {
-  return typeof err === 'object' && err !== null && 'code' in err && err.code === 11000;
-}
-
 export async function createLead(input: CreateLeadInput): Promise<LeadDto> {
-  try {
-    const lead = await Lead.create(input);
-    return toLeadDto(lead.toObject());
-  } catch (err) {
-    if (isDuplicateKeyError(err)) {
-      const message = 'A lead with this email already exists';
-      throw new HttpError(409, message, [{ path: 'email', message }]);
-    }
-    throw err;
-  }
+  const lead = await Lead.create(input);
+  return toLeadDto(lead.toObject());
 }
 
 export async function listLeads({ search, status, page, limit }: ListLeadsQuery): Promise<PaginatedLeads> {

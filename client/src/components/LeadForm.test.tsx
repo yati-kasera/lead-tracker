@@ -69,8 +69,10 @@ describe('LeadForm', () => {
 
   it('maps server field errors onto the matching input', async () => {
     const user = userEvent.setup()
-    const message = 'A lead with this email already exists'
-    const onCreate = vi.fn().mockRejectedValue(new ApiError(409, message, [{ path: 'email', message }]))
+    const message = 'Email is too long'
+    const onCreate = vi
+      .fn()
+      .mockRejectedValue(new ApiError(400, 'Validation failed', [{ path: 'email', message }]))
     render(<LeadForm onCreate={onCreate} />)
 
     await fillForm(user)
