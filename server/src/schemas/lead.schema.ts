@@ -25,7 +25,7 @@ export const createLeadSchema = z.object({
   phone: z
     .string({ error: 'Phone is required' })
     .trim()
-    .regex(PHONE_PATTERN, 'Enter a valid phone number')
+    .regex(PHONE_PATTERN, { message: 'Enter a valid phone number', abort: true })
     .refine((value) => {
       const digits = value.replace(/\D/g, '').length;
       return digits >= 7 && digits <= 15;

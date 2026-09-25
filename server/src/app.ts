@@ -2,6 +2,7 @@ import cors from 'cors';
 import express, { type Express } from 'express';
 import helmet from 'helmet';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
+import { leadRouter } from './routes/lead.routes.js';
 
 export interface AppOptions {
   corsOrigins: string[];
@@ -17,6 +18,8 @@ export function createApp({ corsOrigins }: AppOptions): Express {
   app.get('/api/health', (_req, res) => {
     res.json({ status: 'ok' });
   });
+
+  app.use('/api/leads', leadRouter);
 
   app.use(notFoundHandler);
   app.use(errorHandler);

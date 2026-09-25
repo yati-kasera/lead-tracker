@@ -6,7 +6,9 @@ function sendError(res: Response, status: number, message: string, details?: Err
   res.status(status).json({ error: { message, ...(details ? { details } : {}) } });
 }
 
-function isClientHttpError(err: unknown): err is { status: number; message: string } {
+function isClientHttpError(
+  err: unknown,
+): err is { status: number; message: string; type?: string } {
   return (
     typeof err === 'object' &&
     err !== null &&
@@ -40,7 +42,8 @@ export const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
 
   // Errors raised by body-parser (malformed JSON, payload too large, ...).
   if (isClientHttpError(err)) {
-    sendError(res, err.status, err.message);
+    const message = err.type === 'entity.parse.failed' ? 'Malformed JSON in request body' : err.message;
+    sendError(res, err.status, message);
     return;
   }
 
