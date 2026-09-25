@@ -218,6 +218,80 @@ describe('PATCH /api/leads/:id/status', () => {
   });
 });
 
+describe('DELETE /api/leads/:id', () => {
+  it('deletes a lead and returns 204', async () => {
+    const lead = await createLead();
+
+    const res = await request(app).delete(`/api/leads/${lead.id}`);
+    expect(res.status).toBe(204);
+    expect(res.body).toEqual({});
+
+    const list = await request(app).get('/api/leads');
+    expect(list.body.pagination.total).toBe(0);
+  });
+
+  it('only deletes the requested lead', async () => {
+    const keep = await createLead({ name: 'Keep Me', email: 'keep@example.com' });
+    const remove = await createLead({ name: 'Remove Me', email: 'remove@example.com' });
+
+    await request(app).delete(`/api/leads/${remove.id}`);
+
+    const list = await request(app).get('/api/leads');
+    expect(list.body.data.map((l: { id: string }) => l.id)).toEqual([keep.id]);
+  });
+
+  it('returns 404 for a lead that does not exist (including a second delete)', async () => {
+    const lead = await createLead();
+    await request(app).delete(`/api/leads/${lead.id}`);
+
+    const res = await request(app).delete(`/api/leads/${lead.id}`);
+    expect(res.status).toBe(404);
+    expect(res.body.error.message).toBe('Lead not found');
+  });
+
+  it('rejects a malformed id', async () => {
+    const res = await request(app).delete('/api/leads/not-an-id');
+    expect(res.status).toBe(400);
+    expect(res.body.error.details[0]).toEqual({ path: 'id', message: 'Invalid lead id' });
+  });
+});
+
+describe('GET /api/leads/stats', () => {
+  it('returns zero for every status when there are no leads', async () => {
+    const res = await request(app).get('/api/leads/stats');
+
+    expect(res.status).toBe(200);
+    expect(res.body.data).toEqual({
+      total: 0,
+      byStatus: { NEW: 0, CONTACTED: 0, QUALIFIED: 0, CONVERTED: 0, LOST: 0 },
+    });
+  });
+
+  it('counts leads per status and follows status changes and deletes', async () => {
+    const a = await createLead({ email: 'a@example.com' });
+    await createLead({ email: 'b@example.com' });
+    await createLead({ email: 'c@example.com', status: 'QUALIFIED' });
+    const d = await createLead({ email: 'd@example.com', status: 'LOST' });
+
+    await request(app).patch(`/api/leads/${a.id}/status`).send({ status: 'CONVERTED' });
+    await request(app).delete(`/api/leads/${d.id}`);
+
+    const res = await request(app).get('/api/leads/stats');
+    expect(res.body.data).toEqual({
+      total: 3,
+      byStatus: { NEW: 1, CONTACTED: 0, QUALIFIED: 1, CONVERTED: 1, LOST: 0 },
+    });
+  });
+
+  it('is not affected by list filters', async () => {
+    await createLead({ email: 'a@example.com' });
+    await createLead({ email: 'b@example.com', status: 'CONTACTED' });
+
+    const res = await request(app).get('/api/leads/stats').query({ status: 'NEW', search: 'zzz' });
+    expect(res.body.data.total).toBe(2);
+  });
+});
+
 describe('unknown routes', () => {
   it('return a JSON 404', async () => {
     const res = await request(app).get('/api/nope');
