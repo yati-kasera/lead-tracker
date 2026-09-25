@@ -39,6 +39,11 @@ export interface PaginatedLeads {
   pagination: Pagination
 }
 
+export interface LeadStats {
+  total: number
+  byStatus: Record<LeadStatus, number>
+}
+
 export interface ListLeadsParams {
   search?: string
   status?: LeadStatus | ''

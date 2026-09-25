@@ -8,9 +8,10 @@ interface LeadsTableProps {
   isLoading: boolean
   hasFilters: boolean
   onStatusChange: (lead: Lead, status: LeadStatus) => void
+  onDelete: (lead: Lead) => void
 }
 
-const COLUMN_COUNT = 4
+const COLUMN_COUNT = 5
 
 const headerCellClass = 'px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500'
 
@@ -30,7 +31,14 @@ function SkeletonRows() {
   )
 }
 
-export function LeadsTable({ leads, pendingIds, isLoading, hasFilters, onStatusChange }: LeadsTableProps) {
+export function LeadsTable({
+  leads,
+  pendingIds,
+  isLoading,
+  hasFilters,
+  onStatusChange,
+  onDelete,
+}: LeadsTableProps) {
   const showSkeleton = isLoading && leads.length === 0
 
   return (
@@ -49,6 +57,9 @@ export function LeadsTable({ leads, pendingIds, isLoading, hasFilters, onStatusC
             </th>
             <th scope="col" className={headerCellClass}>
               Created at
+            </th>
+            <th scope="col" className={headerCellClass}>
+              <span className="sr-only">Actions</span>
             </th>
           </tr>
         </thead>
@@ -96,6 +107,24 @@ export function LeadsTable({ leads, pendingIds, isLoading, hasFilters, onStatusC
                     {formatDate(lead.createdAt)}
                   </time>
                   <span className="block text-xs text-slate-400">{formatRelativeTime(lead.createdAt)}</span>
+                </td>
+                <td className="px-2 py-3 text-right">
+                  <button
+                    type="button"
+                    onClick={() => onDelete(lead)}
+                    disabled={pendingIds.has(lead.id)}
+                    aria-label={`Delete ${lead.name}`}
+                    title="Delete lead"
+                    className="rounded-md p-2 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600 focus:outline-none focus:ring-2 focus:ring-rose-500 disabled:opacity-50"
+                  >
+                    <svg aria-hidden="true" viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
+                      <path
+                        fillRule="evenodd"
+                        d="M8.75 1A2.75 2.75 0 0 0 6 3.75v.443c-.795.077-1.584.176-2.365.298a.75.75 0 1 0 .23 1.482l.149-.022.841 10.518A2.75 2.75 0 0 0 7.596 19h4.807a2.75 2.75 0 0 0 2.742-2.53l.841-10.52.149.023a.75.75 0 0 0 .23-1.482A41.03 41.03 0 0 0 14 4.193V3.75A2.75 2.75 0 0 0 11.25 1h-2.5ZM10 4c.84 0 1.673.025 2.5.075V3.75c0-.69-.56-1.25-1.25-1.25h-2.5c-.69 0-1.25.56-1.25 1.25v.325C8.327 4.025 9.16 4 10 4ZM8.58 7.72a.75.75 0 0 0-1.5.06l.3 7.5a.75.75 0 1 0 1.5-.06l-.3-7.5Zm4.34.06a.75.75 0 1 0-1.5-.06l-.3 7.5a.75.75 0 1 0 1.5.06l.3-7.5Z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                  </button>
                 </td>
               </tr>
             ))

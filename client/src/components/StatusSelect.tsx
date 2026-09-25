@@ -1,12 +1,5 @@
 import { LEAD_STATUSES, LEAD_STATUS_LABELS, type LeadStatus } from '../types/lead'
-
-const STATUS_STYLES: Record<LeadStatus, string> = {
-  NEW: 'bg-sky-50 text-sky-700 ring-sky-200',
-  CONTACTED: 'bg-amber-50 text-amber-700 ring-amber-200',
-  QUALIFIED: 'bg-violet-50 text-violet-700 ring-violet-200',
-  CONVERTED: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
-  LOST: 'bg-rose-50 text-rose-700 ring-rose-200',
-}
+import { STATUS_STYLES } from './statusStyles'
 
 interface StatusSelectProps {
   value: LeadStatus

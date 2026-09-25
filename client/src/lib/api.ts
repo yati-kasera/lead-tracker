@@ -1,4 +1,11 @@
-import type { CreateLeadInput, Lead, LeadStatus, ListLeadsParams, PaginatedLeads } from '../types/lead'
+import type {
+  CreateLeadInput,
+  Lead,
+  LeadStats,
+  LeadStatus,
+  ListLeadsParams,
+  PaginatedLeads,
+} from '../types/lead'
 
 const API_URL = (import.meta.env.VITE_API_URL ?? '').replace(/\/+$/, '')
 
@@ -65,6 +72,15 @@ export async function createLead(input: CreateLeadInput): Promise<Lead> {
     method: 'POST',
     body: JSON.stringify(input),
   })
+  return data
+}
+
+export async function deleteLead(id: string): Promise<void> {
+  await request<null>(`/api/leads/${encodeURIComponent(id)}`, { method: 'DELETE' })
+}
+
+export async function getLeadStats(signal?: AbortSignal): Promise<LeadStats> {
+  const { data } = await request<{ data: LeadStats }>('/api/leads/stats', { signal })
   return data
 }
 
