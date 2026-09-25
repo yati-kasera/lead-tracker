@@ -1,12 +1,38 @@
-import express from 'express';
+import dotenv from 'dotenv';
+import { createApp } from './app.js';
+import { loadEnv } from './config/env.js';
+import { connectDatabase, disconnectDatabase } from './db.js';
 
-const app = express();
-const port = Number(process.env.PORT ?? 4000);
+dotenv.config({ quiet: true });
 
-app.get('/api/health', (_req, res) => {
-  res.json({ status: 'ok' });
-});
+async function main(): Promise<void> {
+  const env = loadEnv();
 
-app.listen(port, () => {
-  console.log(`API listening on http://localhost:${port}`);
+  await connectDatabase(env.MONGODB_URI);
+  console.log('Connected to MongoDB');
+
+  const app = createApp({ corsOrigins: env.CORS_ORIGIN });
+  const server = app.listen(env.PORT, () => {
+    console.log(`API listening on port ${env.PORT} (${env.NODE_ENV})`);
+  });
+
+  const shutdown = (signal: NodeJS.Signals) => {
+    console.log(`${signal} received, shutting down`);
+    server.close(() => {
+      disconnectDatabase()
+        .then(() => process.exit(0))
+        .catch((err: unknown) => {
+          console.error(err);
+          process.exit(1);
+        });
+    });
+  };
+
+  process.on('SIGINT', shutdown);
+  process.on('SIGTERM', shutdown);
+}
+
+main().catch((err: unknown) => {
+  console.error('Failed to start server:', err);
+  process.exit(1);
 });
