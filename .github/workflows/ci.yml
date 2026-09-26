@@ -1,13 +1,15 @@
-name: CI
+name: CI/CD
 
 on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
 
 concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  group: ci-cd-${{ github.ref }}
+  # Cancel superseded PR runs, but never interrupt a production deploy on main.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   server:
@@ -52,3 +54,79 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+
+  # Deploys run only for pushes to main, only after both test jobs pass, and only once
+  # the repository variable DEPLOY_ENABLED is set to "true" (after secrets are configured).
+  deploy-api:
+    name: Deploy API (Render)
+    needs: [server, client]
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && vars.DEPLOY_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    environment:
+      name: production-api
+      url: ${{ vars.API_URL }}/api/health
+    env:
+      API_URL: ${{ vars.API_URL }}
+    steps:
+      - name: Trigger Render deploy
+        env:
+          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+        run: curl --fail --silent --show-error -X POST "$RENDER_DEPLOY_HOOK_URL"
+
+      - name: Wait until the API serves this commit
+        run: |
+          for attempt in $(seq 1 60); do
+            body=$(curl --fail --silent --max-time 30 "$API_URL/api/health" || true)
+            echo "[$attempt] ${body:-no response}"
+            if echo "$body" | grep -q "\"version\":\"$GITHUB_SHA\""; then
+              echo "API is live on $GITHUB_SHA"
+              exit 0
+            fi
+            sleep 15
+          done
+          echo "::error::API did not report commit $GITHUB_SHA within 15 minutes"
+          exit 1
+
+      - name: Smoke test API
+        run: |
+          curl --fail --silent --show-error "$API_URL/api/leads?limit=1" > /dev/null
+          curl --fail --silent --show-error "$API_URL/api/leads/stats"
+
+  deploy-web:
+    name: Deploy frontend (Vercel)
+    needs: deploy-api
+    runs-on: ubuntu-latest
+    environment:
+      name: production-web
+      url: ${{ vars.WEB_URL }}
+    env:
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --global vercel@latest
+      - run: vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
+      - name: Build
+        env:
+          VITE_API_URL: ${{ vars.API_URL }}
+        run: vercel build --prod --token="$VERCEL_TOKEN"
+      - name: Deploy
+        run: vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN"
+
+      - name: Smoke test frontend
+        env:
+          WEB_URL: ${{ vars.WEB_URL }}
+        run: |
+          for _ in $(seq 1 10); do
+            if curl --fail --silent --max-time 30 "$WEB_URL" | grep -q "<title>Lead Tracker</title>"; then
+              echo "Frontend is live at $WEB_URL"
+              exit 0
+            fi
+            sleep 6
+          done
+          echo "::error::Frontend at $WEB_URL did not respond as expected"
+          exit 1

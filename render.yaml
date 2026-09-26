@@ -8,7 +8,8 @@ services:
     buildCommand: npm ci --include=dev && npm run build
     startCommand: npm start
     healthCheckPath: /api/health
-    autoDeploy: true
+    # Deploys are triggered by GitHub Actions (deploy hook) only after CI passes.
+    autoDeployTrigger: "off"
     envVars:
       - key: NODE_VERSION
         value: "22"
