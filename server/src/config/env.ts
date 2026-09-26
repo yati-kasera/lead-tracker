@@ -2,7 +2,12 @@ import { z } from 'zod';
 
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
-  PORT: z.coerce.number().int().positive().default(4000),
+  // Empty string (common when the var is left blank in a dashboard) must fall back to the default.
+  // Render itself injects PORT; do not set it manually in the dashboard.
+  PORT: z.preprocess(
+    (value) => (value === '' || value === undefined || value === null ? undefined : value),
+    z.coerce.number().int().positive().default(4000),
+  ),
   MONGODB_URI: z.string().min(1, 'MONGODB_URI is required'),
   // Comma-separated list of allowed origins, or "*" to allow any origin.
   CORS_ORIGIN: z
