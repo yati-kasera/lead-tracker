@@ -11,7 +11,7 @@ async function main(): Promise<void> {
   await connectDatabase(env.MONGODB_URI);
   console.log('Connected to MongoDB');
 
-  const app = createApp({ corsOrigins: env.CORS_ORIGIN });
+  const app = createApp({ corsOrigins: env.CORS_ORIGIN, version: env.RENDER_GIT_COMMIT });
   const server = app.listen(env.PORT, () => {
     console.log(`API listening on port ${env.PORT} (${env.NODE_ENV})`);
   });

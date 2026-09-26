@@ -14,6 +14,8 @@ const envSchema = z.object({
         .map((origin) => origin.trim())
         .filter(Boolean),
     ),
+  // Set automatically by Render to the commit being run.
+  RENDER_GIT_COMMIT: z.string().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;
