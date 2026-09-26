@@ -17,7 +17,7 @@ This project was built with AI assistance, which the assignment explicitly allow
 - Server code: env validation, the app factory, error handler, Mongoose model, Zod schemas, services, controllers and routes.
 - Client code: the typed API client, hooks (`useLeads`, `useLeadStats`, `useDebouncedValue`) and all components.
 - The test suites: 29 server integration tests and 33 client tests.
-- The CI workflow, the Render blueprint, and first drafts of README.md and this file.
+- The CI/CD workflow, the Render blueprint, and first drafts of README.md and this file.
 
 **Done by me (human):**
 
@@ -42,6 +42,7 @@ These are representative prompts, lightly condensed, in the order they were give
 6. *"What about users, authentication and authorization, other functionality, and the overall working and flow?"*, then *"List all the functionalities and pages there will be after completion."* These were design discussions about scope.
 7. *"Implement the status summary cards, roles, delete and CSV export."* The agent planned and started a JWT auth and roles layer.
 8. A scope review: I got an outside review arguing that auth, roles, CSV export and reassignment went beyond the brief and added deployment risk with about 3 days left. I agreed and asked for the scope to be trimmed (see below).
+9. *"What if I don't use render.com and properly set up the CI/CD pipeline?"* We compared Vercel-only, Cloud Run, Railway and a gated Render setup. I chose to keep Render but make GitHub Actions the only deploy path: deploy after tests pass, confirm the live commit, and smoke test.
 
 ## The scope decision (auth and roles were built, then removed)
 
@@ -72,6 +73,7 @@ The auth commit was dropped from history rather than reverted, so the git log re
 | Escaped regex search over name, email and phone | Correct partial, case-insensitive matching. Escaping prevents regex injection. Documented as a scale trade-off |
 | Optimistic status updates with rollback | Instant UI. Failure is handled explicitly and covered by tests |
 | Duplicate emails allowed | Not required by the brief; the same contact can appear in several sales records |
+| GitHub Actions is the only deploy path | Platform auto-deploys are off. Deploys run only after the test jobs pass, and the pipeline waits until `/api/health` reports the pushed commit before deploying the frontend and smoke testing |
 | Stats via a single `$group` aggregation | One round trip, and zeros are filled for empty statuses so the UI always has every card |
 
 ## Problems found and fixed during AI-assisted development

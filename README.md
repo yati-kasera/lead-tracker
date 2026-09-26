@@ -37,7 +37,7 @@ Lead statuses: `NEW` → `CONTACTED` → `QUALIFIED` → `CONVERTED`, or `LOST`.
 | Database | MongoDB with Mongoose 9 | Simple document model for a single entity; free managed hosting on Atlas |
 | Testing | Vitest, Supertest, mongodb-memory-server, React Testing Library | Same runner on both sides; API tests hit a real (in-memory) MongoDB instead of mocks |
 | Linting | oxlint | Fast, zero-config. `typescript-eslint` did not yet support the TypeScript version used |
-| CI / Hosting | GitHub Actions, Render (API), Vercel (frontend), MongoDB Atlas | Free tiers, deploy on push |
+| CI/CD / Hosting | GitHub Actions, Render (API), Vercel (frontend), MongoDB Atlas | Free tiers. Actions deploys only after tests pass |
 
 ## Architecture
 
@@ -154,24 +154,55 @@ npm run typecheck # tsc, both packages
   - Component tests for the form: validation, server field errors and reset.
   - App-level tests with a mocked API: debounced search, filters, stats cards, pagination, optimistic status updates with rollback, the delete confirmation flow, error retry and refresh after create.
 
-CI (`.github/workflows/ci.yml`) runs lint, typecheck, tests and build for both packages on every push to `main` and on every pull request.
+## CI/CD pipeline
+
+GitHub Actions ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) is the only path to production. Auto-deploy is turned off on both Render (`autoDeployTrigger: off` in `render.yaml`) and Vercel (`git.deploymentEnabled: false` in `client/vercel.json`), so a commit that fails tests can never go live.
+
+```mermaid
+flowchart LR
+    Push["push to main"] --> Server["server: lint, typecheck, test, build"]
+    Push --> Client["client: lint, typecheck, test, build"]
+    Server --> DeployApi["deploy-api: Render deploy hook"]
+    Client --> DeployApi
+    DeployApi --> WaitLive["wait until /api/health reports this commit, then smoke test"]
+    WaitLive --> DeployWeb["deploy-web: vercel build and deploy"]
+    DeployWeb --> SmokeWeb["smoke test the live site"]
+```
+
+- **Pull requests** run only the two test jobs.
+- **Pushes to `main`** run the test jobs, then deploy:
+  1. `deploy-api` calls Render's deploy hook.
+  2. It polls `GET /api/health` until the reported `version` equals the pushed commit SHA. Render provides this as `RENDER_GIT_COMMIT`, which confirms the new build is actually serving traffic.
+  3. It smoke-tests the leads and stats endpoints.
+- `deploy-web` then builds the frontend with `VITE_API_URL` set to the API, deploys it with the Vercel CLI, and checks the live page.
+- The deploy jobs are skipped until the repository variable `DEPLOY_ENABLED` is `true`, so CI stays green before the hosting accounts exist.
+- Runs on `main` are never cancelled mid-deploy. Superseded pull-request runs are.
 
 ## Deployment
 
-The API goes to Render, the frontend to Vercel and the database to MongoDB Atlas, all on free tiers.
+The API goes to Render, the frontend to Vercel and the database to MongoDB Atlas, all on free tiers. This is a one-time setup; after it, every green push to `main` deploys automatically.
 
 1. **MongoDB Atlas**
    - Create a free M0 cluster and a database user.
    - Under Network Access, allow `0.0.0.0/0`. Render's free tier has no static outbound IPs.
    - Copy the connection string and add the database name: `mongodb+srv://user:pass@cluster.xxxxx.mongodb.net/lead_tracker?retryWrites=true&w=majority`.
 2. **Render (API)**
-   - Choose New → Blueprint, select this repository, and Render reads `render.yaml`.
-   - Set `MONGODB_URI` to the Atlas string. Set `CORS_ORIGIN` to the Vercel URL, or temporarily to `*` until the frontend exists.
-   - Once live, `https://<service>.onrender.com/api/health` returns `{"status":"ok"}`.
+   - Choose New → Blueprint and select this repository. Render reads `render.yaml` and runs the first deploy.
+   - Set `MONGODB_URI` to the Atlas string, and set `CORS_ORIGIN` to `*` for now.
+   - Check that `https://<service>.onrender.com/api/health` returns `{"status":"ok",...}`.
+   - Copy the **Deploy Hook** URL from the service's Settings page.
 3. **Vercel (frontend)**
-   - Import the repository and set **Root Directory** to `client`. Vite is detected automatically.
-   - Add the env var `VITE_API_URL=https://<service>.onrender.com`, then deploy.
-4. Update `CORS_ORIGIN` on Render to the final Vercel URL (for example `https://lead-tracker.vercel.app`) and let Render redeploy.
+   - Import the repository and set **Root Directory** to `client`.
+   - Add `VITE_API_URL=https://<service>.onrender.com` and deploy once from the dashboard.
+   - Create a token under Account Settings → Tokens.
+   - Note the **Project ID** (Project Settings → General) and your **Team/Account ID** (Settings → General).
+4. **GitHub** (Settings → Secrets and variables → Actions)
+   - Secrets: `RENDER_DEPLOY_HOOK_URL`, `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`.
+   - Variables:
+     - `API_URL`: the Render URL, without a trailing slash.
+     - `WEB_URL`: the Vercel production URL.
+     - `DEPLOY_ENABLED`: `true`.
+5. On Render, change `CORS_ORIGIN` to the Vercel URL. Then re-run the latest workflow (Actions → CI/CD → Run workflow) to confirm the whole pipeline end to end.
 
 Note: free Render services sleep after about 15 minutes idle, so the first request after a pause can take 30 to 60 seconds.
 
